@@ -1,0 +1,93 @@
+{
+  "name": "covenant_propose_routing_plan",
+  "description": "Given a FlowVault principal's on-chain behavior history and a treasury policy, deterministically computes the next lock/split/hold routing configuration. Does not execute any transaction — returns a plan for the caller to review and apply via FlowVault's setRoutingRules.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "address": {
+        "type": "string",
+        "description": "STX or SP principal address"
+      },
+      "policy": {
+        "type": "object",
+        "description": "A PolicySpec object, see covenant-core/src/policySpec.ts",
+        "properties": {
+          "name": { "type": "string" },
+          "baseline": {
+            "type": "object",
+            "properties": {
+              "lockPercent": { "type": "number" },
+              "lockDurationBlocks": { "type": "integer" },
+              "splitAddress": { "type": ["string", "null"] },
+              "splitPercent": { "type": "number" }
+            },
+            "required": ["lockPercent", "lockDurationBlocks", "splitAddress", "splitPercent"]
+          },
+          "adjustments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "when": {
+                  "type": "string",
+                  "enum": ["early_withdraw_streak", "honored_lock_streak", "deposit_cadence_broken", "outflow_velocity_spike"]
+                },
+                "thresholdCount": { "type": "integer" },
+                "thresholdWindowBlocks": { "type": "integer" },
+                "effect": {
+                  "type": "object",
+                  "properties": {
+                    "lockPercentDelta": { "type": "number" },
+                    "lockDurationDeltaBlocks": { "type": "number" },
+                    "splitPercentDelta": { "type": "number" }
+                  },
+                  "required": ["lockPercentDelta", "lockDurationDeltaBlocks"]
+                },
+                "decay": {
+                  "type": "string",
+                  "enum": ["reset_on_opposite", "permanent", "expires_after_n_cycles"]
+                },
+                "decayCycles": { "type": "integer" }
+              },
+              "required": ["when", "effect", "decay"]
+            }
+          },
+          "bounds": {
+            "type": "object",
+            "properties": {
+              "minLockPercent": { "type": "number" },
+              "maxLockPercent": { "type": "number" },
+              "minLockDurationBlocks": { "type": "integer" },
+              "maxLockDurationBlocks": { "type": "integer" }
+            },
+            "required": ["minLockPercent", "maxLockPercent", "minLockDurationBlocks", "maxLockDurationBlocks"]
+          }
+        },
+        "required": ["name", "baseline", "adjustments", "bounds"]
+      },
+      "depositAmountMicro": {
+        "type": "string",
+        "description": "Deposit amount in micro-units, as a string"
+      },
+      "currentBlock": {
+        "type": "integer"
+      }
+    },
+    "required": ["address", "policy", "depositAmountMicro", "currentBlock"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "splitAddress": { "type": ["string", "null"] },
+      "splitAmountMicro": { "type": "string" },
+      "lockAmountMicro": { "type": "string" },
+      "lockUntilBlock": { "type": "integer" },
+      "rationale": { "type": "string" },
+      "appliedAdjustmentIds": {
+        "type": "array",
+        "items": { "type": "string" }
+      }
+    },
+    "required": ["splitAddress", "splitAmountMicro", "lockAmountMicro", "lockUntilBlock", "rationale", "appliedAdjustmentIds"]
+  }
+}

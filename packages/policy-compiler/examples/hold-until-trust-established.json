@@ -1,0 +1,26 @@
+{
+  "name": "hold-until-trust-established",
+  "baseline": {
+    "lockPercent": 0,
+    "lockDurationBlocks": 144,
+    "splitAddress": null,
+    "splitPercent": 0
+  },
+  "adjustments": [
+    {
+      "when": "early_withdraw_streak",
+      "thresholdCount": 1,
+      "effect": {
+        "lockPercentDelta": 40,
+        "lockDurationDeltaBlocks": 1440
+      },
+      "decay": "reset_on_opposite"
+    }
+  ],
+  "bounds": {
+    "minLockPercent": 0,
+    "maxLockPercent": 90,
+    "minLockDurationBlocks": 144,
+    "maxLockDurationBlocks": 52560
+  }
+}

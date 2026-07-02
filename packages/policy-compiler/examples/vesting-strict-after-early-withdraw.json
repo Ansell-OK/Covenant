@@ -1,0 +1,26 @@
+{
+  "name": "vesting-strict-after-early-withdraw",
+  "baseline": {
+    "lockPercent": 40,
+    "lockDurationBlocks": 2160,
+    "splitAddress": null,
+    "splitPercent": 0
+  },
+  "adjustments": [
+    {
+      "when": "early_withdraw_streak",
+      "thresholdCount": 2,
+      "effect": {
+        "lockPercentDelta": 30,
+        "lockDurationDeltaBlocks": 2160
+      },
+      "decay": "reset_on_opposite"
+    }
+  ],
+  "bounds": {
+    "minLockPercent": 0,
+    "maxLockPercent": 90,
+    "minLockDurationBlocks": 144,
+    "maxLockDurationBlocks": 52560
+  }
+}

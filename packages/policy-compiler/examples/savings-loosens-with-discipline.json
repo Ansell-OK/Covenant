@@ -1,0 +1,26 @@
+{
+  "name": "savings-loosens-with-discipline",
+  "baseline": {
+    "lockPercent": 60,
+    "lockDurationBlocks": 4320,
+    "splitAddress": null,
+    "splitPercent": 0
+  },
+  "adjustments": [
+    {
+      "when": "honored_lock_streak",
+      "thresholdCount": 3,
+      "effect": {
+        "lockPercentDelta": -25,
+        "lockDurationDeltaBlocks": -1440
+      },
+      "decay": "reset_on_opposite"
+    }
+  ],
+  "bounds": {
+    "minLockPercent": 0,
+    "maxLockPercent": 90,
+    "minLockDurationBlocks": 144,
+    "maxLockDurationBlocks": 52560
+  }
+}

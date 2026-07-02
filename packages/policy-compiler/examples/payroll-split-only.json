@@ -1,0 +1,16 @@
+{
+  "name": "payroll-split-only",
+  "baseline": {
+    "lockPercent": 0,
+    "lockDurationBlocks": 144,
+    "splitAddress": "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM",
+    "splitPercent": 20
+  },
+  "adjustments": [],
+  "bounds": {
+    "minLockPercent": 0,
+    "maxLockPercent": 90,
+    "minLockDurationBlocks": 144,
+    "maxLockDurationBlocks": 52560
+  }
+}

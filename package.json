@@ -1,0 +1,19 @@
+{
+  "name": "covenant",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A behavior-adaptive routing engine for FlowVault — behavioral vesting, savings, and treasury rules that adapt automatically based on on-chain history.",
+  "workspaces": [
+    "packages/covenant-core",
+    "packages/policy-compiler",
+    "packages/flowvault-adapter",
+    "packages/cli",
+    "packages/frontend"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "dev": "npm run dev --workspace=packages/frontend"
+  },
+  "license": "MIT"
+}

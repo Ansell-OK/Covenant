@@ -1,0 +1,28 @@
+{
+  "name": "treasury-tightens-on-outflow-spike",
+  "baseline": {
+    "lockPercent": 30,
+    "lockDurationBlocks": 720,
+    "splitAddress": null,
+    "splitPercent": 0
+  },
+  "adjustments": [
+    {
+      "when": "outflow_velocity_spike",
+      "thresholdCount": 3,
+      "thresholdWindowBlocks": 144,
+      "effect": {
+        "lockPercentDelta": 35,
+        "lockDurationDeltaBlocks": 2880
+      },
+      "decay": "expires_after_n_cycles",
+      "decayCycles": 2
+    }
+  ],
+  "bounds": {
+    "minLockPercent": 0,
+    "maxLockPercent": 90,
+    "minLockDurationBlocks": 144,
+    "maxLockDurationBlocks": 52560
+  }
+}

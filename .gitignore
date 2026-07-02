@@ -1,0 +1,26 @@
+node_modules/
+dist/
+.next/
+.turbo/
+*.tsbuildinfo
+
+# Covenant local history files
+.covenant/
+
+# Environment files — NEVER commit private keys
+.env
+.env.local
+.env*.local
+
+# Build outputs
+packages/*/dist/
+packages/frontend/.next/
+packages/frontend/out/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db

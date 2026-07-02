@@ -1,0 +1,24 @@
+{
+  "name": "@covenant/cli",
+  "version": "1.0.0",
+  "description": "CLI: npx covenant run --policy policy.json --address ST...",
+  "bin": {
+    "covenant": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/index.ts"
+  },
+  "dependencies": {
+    "@covenant/core": "*",
+    "@covenant/flowvault-adapter": "*",
+    "@covenant/policy-compiler": "*",
+    "commander": "^12.0.0",
+    "dotenv": "^16.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.4.0"
+  }
+}
