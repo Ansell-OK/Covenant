@@ -33,3 +33,21 @@ The FlowVault contract is intentionally simple: one lock rule and one split rule
 | `getRoutingRules(address)` | `flowvault-adapter/executor.ts` (for history polling) |
 | `getCurrentBlockHeight(address)` | `flowvault-adapter/executor.ts` (for lockUntilBlock computation) |
 | `hasLockedFunds(address)` | `flowvault-adapter/executor.ts` (for early-withdraw detection) |
+
+---
+
+## Covenant Splitter Contract
+
+To support multi-recipient payouts without modifying FlowVault, Covenant includes a standalone `covenant-splitter` contract.
+
+FlowVault routes the `splitAmount` directly to the splitter contract as a normal STX/SIP-010 transfer. The splitter tracks deposits and allows registered recipients to claim their precise share at their convenience.
+
+### Deployed Contract Details
+
+| Field | Value |
+|---|---|
+| Network | Stacks Testnet |
+| Contract Name | `covenant-splitter` |
+| Default Address | `ST2YJMFAPYZWPFCASY1EJQZMCJZRXGEM9VM5N24WJ.covenant-splitter` |
+
+*(Note: To deploy your own instance of the splitter to testnet, ensure `DEPLOYER_KEY` is set in your `.env` file and run `npm run deploy` inside `packages/splitter-contract`.)*

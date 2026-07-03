@@ -1,0 +1,30 @@
+{
+  "id": "multi-recipient-payout",
+  "name": "Multi-Recipient Payout",
+  "description": "Sends exactly a fifth of the deposit to the specified address right away. Keeps the rest locked for a year, with a 15% lock penalty after 3 consecutive early withdraws.",
+  "baseline": {
+    "lockPercent": 80,
+    "lockDurationBlocks": 52560,
+    "splitPercent": 20,
+    "splitAddress": "ST2YJMFAPYZWPFCASY1EJQZMCJZRXGEM9VM5N24WJ"
+  },
+  "adjustments": [
+    {
+      "trigger": "early_withdraw_streak",
+      "thresholdCount": 3,
+      "effect": {
+        "lockPercentDelta": 15,
+        "lockDurationDeltaBlocks": 0,
+        "splitPercentDelta": 0
+      },
+      "decayCycles": 0,
+      "decayType": "reset_on_opposite"
+    }
+  ],
+  "bounds": {
+    "minLockPercent": 0,
+    "maxLockPercent": 100,
+    "minLockDurationBlocks": 0,
+    "maxLockDurationBlocks": 105120
+  }
+}

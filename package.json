@@ -8,7 +8,8 @@
     "packages/policy-compiler",
     "packages/flowvault-adapter",
     "packages/cli",
-    "packages/frontend"
+    "packages/frontend",
+    "packages/splitter-contract"
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",

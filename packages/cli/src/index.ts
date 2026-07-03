@@ -133,7 +133,7 @@ program
         currentBlock = ctx.currentBlock;
         console.log(`📦 Current block: ${currentBlock}`);
         console.log(
-          `💰 Vault state: unlocked=${ctx.vaultState?.unlocked ?? "?"}, locked=${ctx.vaultState?.locked ?? "?"}`
+          `💰 Vault state: unlocked=${(ctx.vaultState as any)?.unlockedBalance ?? "?"}, locked=${(ctx.vaultState as any)?.lockedBalance ?? "?"}`
         );
       } catch (err) {
         console.error("❌ Failed to fetch vault state:", formatError(err));
@@ -297,6 +297,61 @@ program
           `tx: ${e.txId.slice(0, 12)}...`
       );
     });
+  });
+
+// ── covenant claim ─────────────────────────────────────────────────────────────
+program
+  .command("claim")
+  .description("Claim available funds from the splitter contract for an address.")
+  .requiredOption("--address <address>", "Stacks principal address")
+  .action(async (opts) => {
+    const senderKey = process.env.STACKS_PRIVATE_KEY;
+    if (!senderKey) {
+      console.error("❌ STACKS_PRIVATE_KEY is not set.");
+      process.exit(1);
+    }
+
+    console.log(`\n💸 Checking claimable amount for ${opts.address}...`);
+    try {
+      const { getClaimableAmount, buildClaimOptions } = await import("@covenant/flowvault-adapter");
+      const { makeContractCall, broadcastTransaction } = await import("@stacks/transactions");
+
+      const amount = await getClaimableAmount(opts.address);
+      if (amount === 0n) {
+        console.log(`No funds to claim for ${opts.address}.`);
+        return;
+      }
+      console.log(`💰 Found ${amount.toString()} micro-USDCx claimable.`);
+      
+      const confirmRun = await confirm("Proceed with claim? (y/N) ");
+      if (!confirmRun) {
+        console.log("Aborted.");
+        return;
+      }
+
+      const claimOptions = buildClaimOptions();
+      const transaction = await makeContractCall({
+        contractAddress: claimOptions.contractAddress,
+        contractName: claimOptions.contractName,
+        functionName: claimOptions.functionName,
+        functionArgs: claimOptions.functionArgs,
+        network: claimOptions.network,
+        senderKey: senderKey,
+      });
+
+      const broadcastResponse = await broadcastTransaction({ transaction });
+
+      if ("error" in broadcastResponse && broadcastResponse.error) {
+        throw new Error((broadcastResponse as any).reason || broadcastResponse.error);
+      }
+      
+      const txid = typeof broadcastResponse === "string" ? broadcastResponse : (broadcastResponse as any).txid;
+      console.log(`✅ Claim tx: ${txid}`);
+      console.log(`🔗 Explorer: https://explorer.hiro.so/txid/${txid}?chain=testnet`);
+    } catch (err) {
+      console.error("❌ Claim failed:", formatError(err));
+      process.exit(1);
+    }
   });
 
 program.parse(process.argv);

@@ -1,0 +1,21 @@
+{
+  "name": "@covenant/splitter-contract",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "vitest run",
+    "deploy": "ts-node scripts/deploy.ts"
+  },
+  "dependencies": {
+    "@stacks/transactions": "^7.0.6",
+    "@stacks/wallet-sdk": "^7.5.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@stacks/clarinet-sdk": "^3.8.1",
+    "@stacks/network": "^7.0.6",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0"
+  }
+}

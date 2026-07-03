@@ -5,7 +5,7 @@
 // No routing/vesting logic here — that belongs in covenant-core.
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { connect } from "@stacks/connect";
+import { connect, openContractCall } from "@stacks/connect";
 import type {
   PolicySpec,
   BehaviorSignals,
@@ -13,8 +13,9 @@ import type {
   HistoryLogEntry,
 } from "@covenant/core";
 import { engine, deriveBehaviorSignals, PolicySpecSchema } from "@covenant/core";
-import { compile, type CompileResult } from "@covenant/policy-compiler";
+import { type CompileResult } from "@covenant/policy-compiler";
 import { createBrowserVaultClient } from "../lib/flowvault";
+import { getClaimableAmount, buildClaimOptions, SPLITTER_CONTRACT_ADDRESS } from "@covenant/flowvault-adapter";
 
 // ── Token config ────────────────────────────────────────────────────────────────
 const USDCX_CONTRACT_ADDRESS = "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM";
@@ -137,6 +138,11 @@ export interface CovenantState {
   withdrawError: string | null;
   withdrawAmountMicro: string;
 
+  // Splitter
+  claimableAmount: bigint | null;
+  isClaiming: boolean;
+  claimError: string | null;
+
   // History
   history: HistoryLogEntry[];
 }
@@ -156,6 +162,7 @@ export interface CovenantActions {
   setWithdrawAmount: (v: string) => void;
   setSplitAddressOverride: (v: string) => void;
   clearHistory: () => void;
+  claimSplitter: () => Promise<void>;
 }
 
 const EXPLORER_BASE = "https://explorer.hiro.so/txid/";
@@ -186,6 +193,9 @@ export function useCovenant(): CovenantState & CovenantActions {
     isWithdrawing: false,
     withdrawError: null,
     withdrawAmountMicro: "1000000",
+    claimableAmount: null,
+    isClaiming: false,
+    claimError: null,
     history: [],
   });
 
@@ -247,6 +257,7 @@ export function useCovenant(): CovenantState & CovenantActions {
       behaviorSignals: null,
       routingPlan: null,
       isPlanComputed: false,
+      claimableAmount: null,
       history: [],
     }));
   }, []);
@@ -259,7 +270,16 @@ export function useCovenant(): CovenantState & CovenantActions {
   const compilePolicy = useCallback(async () => {
     setState((s) => ({ ...s, isCompiling: true, compileError: null }));
     try {
-      const result = await compile(state.policyText, "frontend-policy");
+      const res = await fetch("/api/compile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: state.policyText, policyName: "frontend-policy" }),
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody?.error ?? `Compile request failed (${res.status}).`);
+      }
+      const result = await res.json();
       setState((s) => ({
         ...s,
         isCompiling: false,
@@ -300,10 +320,11 @@ export function useCovenant(): CovenantState & CovenantActions {
       const vault = vaultRef.current;
       const addr = state.walletAddress;
 
-      const [block, vaultStateRaw, usdcxBalance] = await Promise.all([
+      const [block, vaultStateRaw, usdcxBalance, claimable] = await Promise.all([
         vault.getCurrentBlockHeight(addr),
         vault.getVaultState(addr),
         fetchUsdcxBalance(addr),
+        getClaimableAmount(addr)
       ]);
 
       setState((s) => ({
@@ -315,6 +336,7 @@ export function useCovenant(): CovenantState & CovenantActions {
           lockUntilBlock: Number((vaultStateRaw as { lockUntilBlock?: unknown })?.lockUntilBlock ?? 0),
         },
         usdcxBalance,
+        claimableAmount: claimable,
         isFetchingContext: false,
       }));
     } catch {
@@ -575,6 +597,27 @@ export function useCovenant(): CovenantState & CovenantActions {
     }));
   }, [state.walletAddress]);
 
+  const claimSplitter = useCallback(async () => {
+    if (!state.walletAddress) return;
+    setState(s => ({ ...s, isClaiming: true, claimError: null }));
+
+    try {
+      const options = buildClaimOptions();
+      await openContractCall({
+        ...options,
+        onFinish: data => {
+          console.log("Claim tx submitted:", data.txId);
+          setState(s => ({ ...s, isClaiming: false }));
+        },
+        onCancel: () => {
+          setState(s => ({ ...s, isClaiming: false, claimError: "Transaction canceled" }));
+        }
+      });
+    } catch (e) {
+      setState(s => ({ ...s, isClaiming: false, claimError: String(e) }));
+    }
+  }, [state.walletAddress]);
+
   return {
     ...state,
     connectWallet,
@@ -591,6 +634,7 @@ export function useCovenant(): CovenantState & CovenantActions {
     setWithdrawAmount,
     setSplitAddressOverride,
     clearHistory,
+    claimSplitter,
   };
 }
 

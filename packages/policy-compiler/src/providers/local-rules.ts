@@ -41,7 +41,7 @@ import { PolicySpec, PolicySpecSchema } from "@covenant/core";
 const BLOCKS_PER_DAY = 144;
 
 /** STX/SP address regex — matches ST.../SP... testnet/mainnet addresses */
-const STX_ADDRESS_RE = /\b(ST|SP)[A-Z0-9]{38,40}\b/;
+const STX_ADDRESS_RE = /\b(ST|SP)[A-Z0-9]{37,41}(?:\.[a-zA-Z0-9-]+)?\b/;
 
 /** Percent extraction: number immediately followed by % */
 const PERCENT_RE = /(\d+(?:\.\d+)?)\s*%/g;

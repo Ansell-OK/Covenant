@@ -111,6 +111,10 @@ export async function compileWithGemini(
           maxLockDurationBlocks: 52560
         };
       }
+      if (!parsed.baseline) parsed.baseline = {};
+      if (parsed.baseline.lockDurationBlocks === 0) {
+        parsed.baseline.lockDurationBlocks = 144;
+      }
       if (Array.isArray(parsed.adjustments)) {
         for (const adj of parsed.adjustments) {
           if (adj && typeof adj === "object") {

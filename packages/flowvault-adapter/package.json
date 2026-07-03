@@ -13,6 +13,8 @@
   "dependencies": {
     "@covenant/core": "*",
     "@stacks/connect": "^7.0.0",
+    "@stacks/network": "^7.5.0",
+    "@stacks/transactions": "^7.5.0",
     "flowvault-sdk": "0.1.1"
   },
   "devDependencies": {

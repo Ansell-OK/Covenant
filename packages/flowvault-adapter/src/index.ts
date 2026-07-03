@@ -19,3 +19,10 @@ export {
 } from "./executor";
 
 export type { ExecuteDepositCycleResult } from "./executor";
+
+export {
+  getClaimableAmount,
+  getSplitterBalance,
+  buildClaimOptions,
+  SPLITTER_CONTRACT_ADDRESS
+} from "./splitterClient";

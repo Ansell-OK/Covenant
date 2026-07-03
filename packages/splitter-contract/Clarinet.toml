@@ -1,0 +1,25 @@
+[project]
+name = "splitter-contract"
+description = "A pull-based multi-recipient SIP-010 splitter for Covenant"
+authors = []
+telemetry = false
+cache_dir = "./.cache"
+
+[contracts.covenant-splitter]
+path = "contracts/covenant-splitter.clar"
+clarity_version = 2
+epoch = 2.4
+
+[contracts.sip-010-trait]
+path = "tests/mocks/sip-010-trait.clar"
+clarity_version = 2
+epoch = 2.4
+
+[contracts.mock-sip-010]
+path = "tests/mocks/mock-sip-010.clar"
+clarity_version = 2
+epoch = 2.4
+
+[repl]
+clarity_wasm_mode = false
+show_timings = false
