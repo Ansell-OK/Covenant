@@ -225,6 +225,7 @@ describe("Scenario 6: outflow_velocity_spike", () => {
       totalMicroWithdrawn: "500000",
       withdrawCount: 3, // exactly at threshold
     },
+    activeAdjustmentIds: ["outflow_velocity_spike"],
   };
 
   it("applies outflow_velocity_spike when withdrawCount >= thresholdCount", () => {
@@ -242,6 +243,7 @@ describe("Scenario 6: outflow_velocity_spike", () => {
     const signals2: BehaviorSignals = {
       ...signals,
       outflowLastWindow: { ...signals.outflowLastWindow, withdrawCount: 2 },
+      activeAdjustmentIds: [],
     };
     const plan = engine(signals2, policy, DEPOSIT, CURRENT_BLOCK);
     expect(plan.appliedAdjustmentIds).not.toContain("outflow_velocity_spike");
@@ -287,6 +289,7 @@ describe("Scenario 7: Two adjustments triggered simultaneously", () => {
       totalMicroWithdrawn: "500000",
       withdrawCount: 3,
     },
+    activeAdjustmentIds: ["early_withdraw_streak", "outflow_velocity_spike"],
   };
 
   it("sums deltas, clamps to maxLockPercent=90, and keeps lockPercent+splitPercent<=100", () => {
@@ -416,5 +419,42 @@ describe("Scenario 10: Hold-only baseline, lock only on bad behavior", () => {
     expect(plan.lockUntilBlock).toBe(CURRENT_BLOCK + 1584); // 144 + 1440
     expect(BigInt(plan.lockAmountMicro) + BigInt(plan.splitAmountMicro))
       .toBeLessThanOrEqual(BigInt(DEPOSIT));
+  });
+});
+
+// ── Regression Test for Fix 1 ────────────────────────────────────────────────
+describe("Regression Test: expires_after_n_cycles decay is respected", () => {
+  const policy: PolicySpec = {
+    ...baselinePolicy,
+    name: "test-decay",
+    adjustments: [
+      {
+        when: "outflow_velocity_spike",
+        thresholdCount: 3,
+        thresholdWindowBlocks: 144,
+        effect: { lockPercentDelta: 25, lockDurationDeltaBlocks: 1440 },
+        decay: "expires_after_n_cycles",
+        decayCycles: 2,
+      },
+    ],
+  };
+
+  const signals: BehaviorSignals = {
+    ...freshSignals,
+    outflowLastWindow: {
+      windowBlocks: 144,
+      totalMicroWithdrawn: "500000",
+      withdrawCount: 3, // raw condition is STILL TRUE
+    },
+    // Crucially, activeAdjustmentIds does NOT include it because it decayed
+    activeAdjustmentIds: [],
+  };
+
+  it("does NOT apply adjustment if decay logic removed it from activeAdjustmentIds (even if raw condition true)", () => {
+    const plan = engine(signals, policy, DEPOSIT, CURRENT_BLOCK);
+    
+    expect(plan.appliedAdjustmentIds).not.toContain("outflow_velocity_spike");
+    // Should fall back to baseline 50%
+    expect(plan.lockAmountMicro).toBe("500000");
   });
 });

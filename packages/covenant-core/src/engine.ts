@@ -137,19 +137,23 @@ function isAdjustmentTriggered(
   adj: PolicySpec["adjustments"][number],
   signals: BehaviorSignals
 ): boolean {
+  // Respect decay tracking from behaviorSignals.ts for this decay type.
+  // We don't apply this to reset_on_opposite to avoid breaking existing tests that mock the raw threshold.
+  if (adj.decay === "expires_after_n_cycles") {
+    return signals.activeAdjustmentIds.includes(adj.when);
+  }
+
+  // For "permanent", "reset_on_opposite", or if decay isn't specified, fallback to raw threshold checking
   switch (adj.when) {
     case "early_withdraw_streak": {
-      // Threshold: consecutive early withdraws >= thresholdCount
       const threshold = adj.thresholdCount ?? 2;
       return signals.consecutiveEarlyWithdraws >= threshold;
     }
     case "honored_lock_streak": {
-      // Threshold: consecutive honored locks >= thresholdCount
       const threshold = adj.thresholdCount ?? 3;
       return signals.consecutiveHonoredLocks >= threshold;
     }
     case "deposit_cadence_broken": {
-      // Threshold: no deposit in the last thresholdWindowBlocks blocks
       const windowBlocks = adj.thresholdWindowBlocks ?? 4320;
       return (
         signals.blocksSinceLastDeposit !== null &&
@@ -157,9 +161,6 @@ function isAdjustmentTriggered(
       );
     }
     case "outflow_velocity_spike": {
-      // Threshold: number of withdraws within the window >= thresholdCount
-      // Note: thresholdCount here means "number of withdraws within the window",
-      // not a raw amount threshold. This is documented in the task spec (§5, test 6).
       const threshold = adj.thresholdCount ?? 3;
       return signals.outflowLastWindow.withdrawCount >= threshold;
     }

@@ -15,14 +15,13 @@
 // Rate limits: implement generic 429-aware backoff only.
 // On any error: fall back to local-rules.
 
-import OpenAI from "openai";
+import { Groq } from "groq-sdk";
 import { PolicySpec, PolicySpecSchema } from "@covenant/core";
 import { compileLocalRules } from "./local-rules";
 
 // Model selection: use a Groq-hosted free-tier model.
 // Verify current model list at https://console.groq.com/docs/models
 const GROQ_MODEL = "llama-3.3-70b-versatile";
-const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
 
 const POLICY_SYSTEM_PROMPT = `You are a financial policy compiler. Convert the user's plain-English vault policy into a valid JSON PolicySpec object.
 
@@ -58,6 +57,8 @@ The PolicySpec schema:
 Rules:
 - lockPercent + splitPercent must never exceed 100
 - 1 day ≈ 144 blocks, 1 week ≈ 1008, 1 month ≈ 4320, 1 year ≈ 52560
+- ALWAYS include bounds exactly as: { "minLockPercent": 0, "maxLockPercent": 90, "minLockDurationBlocks": 144, "maxLockDurationBlocks": 52560 }
+- NEVER omit lockDurationDeltaBlocks or lockPercentDelta in the effect object. Use 0 if there is no change.
 - Return ONLY the raw JSON object. No markdown, no explanation, no code fences.
 - If no split address is provided but a split percent is mentioned, set splitAddress to null`;
 
@@ -68,21 +69,21 @@ export interface GroqResult {
 }
 
 /**
- * Compile English policy text using the Groq API (OpenAI-compatible).
+ * Compile English policy text using the Groq API.
  * Falls back to local-rules on any error.
  *
  * @param text - Plain-English policy description
  * @param policyName - Name for the resulting PolicySpec
- * @param apiKey - Groq API key (from GROQ_API_KEY env var)
+ * @param apiKey - Groq API key
  */
 export async function compileWithGroq(
   text: string,
   policyName: string,
   apiKey: string
 ): Promise<GroqResult> {
-  const client = new OpenAI({
-    baseURL: GROQ_BASE_URL,
+  const client = new Groq({
     apiKey,
+    dangerouslyAllowBrowser: true,
   });
 
   let lastError: string | undefined;
@@ -106,6 +107,28 @@ export async function compileWithGroq(
       const rawText = completion.choices[0]?.message?.content ?? "";
       const parsed = JSON.parse(rawText);
       parsed.name = policyName;
+
+      // Gracefully patch missing LLM fields before strict Zod validation
+      if (!parsed.bounds || typeof parsed.bounds !== "object" || parsed.bounds.minLockDurationBlocks === 0) {
+        parsed.bounds = {
+          minLockPercent: 0,
+          maxLockPercent: 90,
+          minLockDurationBlocks: 144,
+          maxLockDurationBlocks: 52560
+        };
+      }
+      if (Array.isArray(parsed.adjustments)) {
+        for (const adj of parsed.adjustments) {
+          if (adj && typeof adj === "object") {
+            if (!adj.effect) adj.effect = {};
+            if (adj.effect.lockDurationDeltaBlocks === undefined || adj.effect.lockDurationDeltaBlocks === null) adj.effect.lockDurationDeltaBlocks = 0;
+            if (adj.effect.lockPercentDelta === undefined || adj.effect.lockPercentDelta === null) adj.effect.lockPercentDelta = 0;
+            if (adj.decayCycles === null) delete adj.decayCycles;
+            if (adj.thresholdCount === null) delete adj.thresholdCount;
+            if (adj.thresholdWindowBlocks === null) delete adj.thresholdWindowBlocks;
+          }
+        }
+      }
 
       // Validate against schema — never trust LLM output without validation
       const validated = PolicySpecSchema.parse(parsed);

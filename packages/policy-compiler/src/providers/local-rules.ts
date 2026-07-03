@@ -76,9 +76,21 @@ export function compileLocalRules(
   const lower = text.toLowerCase();
   const warnings: LocalRulesWarning[] = [];
 
+  const conditionalMatch = lower.match(/\b(if|after|once|the moment|however|but)\b/);
+  let baselineText = lower;
+  let adjustmentText = "";
+  if (conditionalMatch && conditionalMatch.index !== undefined) {
+    baselineText = lower.slice(0, conditionalMatch.index);
+    adjustmentText = lower.slice(conditionalMatch.index);
+  } else {
+    // If no explicit trigger words, but they still have adjustment keywords,
+    // fallback: just treat everything as adjustment text too (the original behavior)
+    adjustmentText = lower;
+  }
+
   // ── Extract baseline lock percent ────────────────────────────────────────
   // Look for "lock N%" near the start of the text
-  const percentMatches = [...text.matchAll(PERCENT_RE)];
+  const percentMatches = [...baselineText.matchAll(PERCENT_RE)];
   let lockPercent = 50; // default
   let splitPercent = 0; // default
 
@@ -104,8 +116,8 @@ export function compileLocalRules(
   // ── Extract baseline lock duration ───────────────────────────────────────
   let lockDurationBlocks = 4320; // default: ~30 days
 
-  const daysMatches = [...text.matchAll(DAYS_RE)];
-  const blocksMatches = [...text.matchAll(BLOCKS_RE)];
+  const daysMatches = [...baselineText.matchAll(DAYS_RE)];
+  const blocksMatches = [...baselineText.matchAll(BLOCKS_RE)];
 
   if (daysMatches.length > 0) {
     // Use the first day mention near "lock" as the lock duration
@@ -139,6 +151,22 @@ export function compileLocalRules(
       lockPercent = 0;
     }
   }
+  
+  // ── If it's a lock-only policy (no split mentions, no split address) ─────
+  if (
+    lower.includes("keep the rest liquid") ||
+    lower.includes("keep it all liquid") ||
+    lower.includes("keep everything liquid") ||
+    lower.includes("don't lock") ||
+    lower.includes("do not lock")
+  ) {
+    lockPercent = 0;
+  }
+
+  if (lockPercent === 0) {
+    // If it's split only or hold only, duration doesn't matter, default to 1 day
+    lockDurationBlocks = 144;
+  }
 
   // ── Parse adjustments ────────────────────────────────────────────────────
   const adjustments: PolicySpec["adjustments"] = [];
@@ -160,7 +188,10 @@ export function compileLocalRules(
       const thresholdMatch =
         lower.match(/(\d+)\s+(?:times?|consecutive|in a row)/) ??
         lower.match(/(\d+)\s+times? in a row/);
-      const thresholdCount = thresholdMatch ? parseInt(thresholdMatch[1], 10) : 2;
+      let thresholdCount = thresholdMatch ? parseInt(thresholdMatch[1], 10) : 2;
+      if (!thresholdMatch && lower.includes("once")) {
+        thresholdCount = 1;
+      }
 
       // Try to extract custom lock delta from phrases like "lock 70%", "lock N% for M days"
       const adj: PolicySpec["adjustments"][number] = {
@@ -175,22 +206,32 @@ export function compileLocalRules(
 
       // Look for "until they go back to honoring" → implies reset_on_opposite (already default)
       // Look for "for N days" in the context of the punishment
-      const punishDaysMatch = lower.match(/(?:lock|locked)\s+\d+%\s+for\s+(\d+)\s+days?/);
+      // Look for "for N days" in the context of the punishment
+      const punishDaysMatch = adjustmentText.match(/(?:lock|locked|extra)\s*(?:\d+%|)\s*(?:for\s+)?(?:the\s+next\s+)?(\d+)\s+days?/);
       if (punishDaysMatch) {
         const punishDays = parseInt(punishDaysMatch[1], 10);
         const punishBlocks = punishDays * BLOCKS_PER_DAY;
-        adj.effect.lockDurationDeltaBlocks = punishBlocks - lockDurationBlocks;
+        if (adjustmentText.includes("extra") || lockPercent === 0) {
+           adj.effect.lockDurationDeltaBlocks = punishBlocks;
+        } else {
+           adj.effect.lockDurationDeltaBlocks = punishBlocks - lockDurationBlocks;
+        }
       }
 
-      // Look for punishment percent "lock 70%" or "tighten to 80%"
-      const punishPctMatch = lower.match(
-        /(?:withdraw|early).*?(?:lock|locked|tighten|increase|to|up to)\s+(\d+)%/
-      ) ?? lower.match(
-        /(?:lock|locked|tighten|increase|to|up to)\s+(\d+)%.*?(?:withdraw|early)/
-      );
+      // Look for punishment percent "lock 70%" or "tighten to 80%" or "extra 25%"
+      const punishPctMatch = adjustmentText.match(
+        /(?:withdraw|early).*?(?:lock|locked|tighten|increase|to|up to|extra)\s+(\d+)%/
+      ) ?? adjustmentText.match(
+        /(?:lock|locked|tighten|increase|to|up to|extra)\s+(\d+)%.*?(?:withdraw|early)/
+      ) ?? adjustmentText.match(/(\d+)%/);
+
       if (punishPctMatch) {
         const punishPct = parseInt(punishPctMatch[1], 10);
-        adj.effect.lockPercentDelta = punishPct - lockPercent;
+        if (adjustmentText.includes("extra")) {
+            adj.effect.lockPercentDelta = punishPct;
+        } else {
+            adj.effect.lockPercentDelta = punishPct - lockPercent;
+        }
       }
 
       adjustments.push(adj);
@@ -210,12 +251,26 @@ export function compileLocalRules(
     const thresholdMatch = lower.match(/(\d+)\s+(?:honored|consecutive|in a row)/);
     const thresholdCount = thresholdMatch ? parseInt(thresholdMatch[1], 10) : 3;
 
+    // Custom loosening percent/duration
+    const easePctMatch = adjustmentText.match(/(\d+)%/);
+    let lockPercentDelta = -15; // default
+    if (easePctMatch) {
+      lockPercentDelta = -parseInt(easePctMatch[1], 10);
+    }
+    
+    const easeDaysMatch = adjustmentText.match(/(\d+)\s+days?/);
+    let lockDurationDeltaBlocks = -360; // default
+    if (easeDaysMatch) {
+       const easeDays = parseInt(easeDaysMatch[1], 10);
+       lockDurationDeltaBlocks = -(easeDays * BLOCKS_PER_DAY);
+    }
+
     adjustments.push({
       when: "honored_lock_streak",
       thresholdCount,
       effect: {
-        lockPercentDelta: -15,          // default: ease up
-        lockDurationDeltaBlocks: -360,  // ~2.5 days
+        lockPercentDelta,
+        lockDurationDeltaBlocks,
       },
       decay: "reset_on_opposite",
     });
@@ -267,27 +322,42 @@ export function compileLocalRules(
       decayCycles = (map[word] ?? parseInt(word, 10)) || 2;
     }
 
+    // Custom tightening percent
+    const tightPctMatch = adjustmentText.match(/(\d+)%/);
+    let lockPercentDelta = 25; // default
+    if (tightPctMatch) {
+       const pct = parseInt(tightPctMatch[1], 10);
+       if (adjustmentText.includes("extra")) {
+           lockPercentDelta = pct;
+       } else {
+           lockPercentDelta = pct - lockPercent;
+       }
+    }
+
+    // Custom tightening duration
+    const tightDaysMatch = adjustmentText.match(/(\d+)\s+days?/);
+    let lockDurationDeltaBlocks = 1440; // default
+    if (tightDaysMatch) {
+       const days = parseInt(tightDaysMatch[1], 10);
+       const blocks = days * BLOCKS_PER_DAY;
+       if (adjustmentText.includes("extra")) {
+           lockDurationDeltaBlocks = blocks;
+       } else {
+           lockDurationDeltaBlocks = blocks - lockDurationBlocks;
+       }
+    }
+
     adjustments.push({
       when: "outflow_velocity_spike",
       thresholdCount,
       thresholdWindowBlocks: windowBlocks,
       effect: {
-        lockPercentDelta: 25,
-        lockDurationDeltaBlocks: 1440, // ~10 days
+        lockPercentDelta,
+        lockDurationDeltaBlocks,
       },
       decay: "expires_after_n_cycles",
       decayCycles,
     });
-  }
-
-  // ── If it's a lock-only policy (no split mentions, no split address) ─────
-  if (
-    lower.includes("keep the rest liquid") ||
-    lower.includes("keep it all liquid") ||
-    lower.includes("don't lock") ||
-    lower.includes("do not lock")
-  ) {
-    lockPercent = 0;
   }
 
   // ── Build baseline & bounds ───────────────────────────────────────────────

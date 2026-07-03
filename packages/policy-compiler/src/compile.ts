@@ -44,9 +44,9 @@ export async function compile(
   }
 ): Promise<CompileResult> {
   const geminiKey =
-    options?.geminiApiKey ?? process.env.GEMINI_API_KEY ?? "";
+    options?.geminiApiKey ?? process.env.GEMINI_API_KEY ?? process.env.NEXT_PUBLIC_GEMINI_API_KEY ?? "";
   const groqKey =
-    options?.groqApiKey ?? process.env.GROQ_API_KEY ?? "";
+    options?.groqApiKey ?? process.env.GROQ_API_KEY ?? process.env.NEXT_PUBLIC_GROQ_API_KEY ?? "";
 
   // ── Try Gemini ──────────────────────────────────────────────────────────
   if (geminiKey) {

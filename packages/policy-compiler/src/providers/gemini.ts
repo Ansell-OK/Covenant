@@ -53,6 +53,8 @@ The PolicySpec schema:
 Rules:
 - lockPercent + splitPercent must never exceed 100
 - All amounts in blocks (1 day ≈ 144 blocks, 1 week ≈ 1008, 1 month ≈ 4320, 1 year ≈ 52560)
+- ALWAYS include bounds exactly as: { "minLockPercent": 0, "maxLockPercent": 90, "minLockDurationBlocks": 144, "maxLockDurationBlocks": 52560 }
+- NEVER omit lockDurationDeltaBlocks or lockPercentDelta in the effect object. Use 0 if there is no change.
 - Return ONLY valid JSON, no explanation
 - If no split address is provided but a split percent is mentioned, set splitAddress: null`;
 
@@ -99,6 +101,28 @@ export async function compileWithGemini(
       const rawText = response.text ?? "";
       const parsed = JSON.parse(rawText);
       parsed.name = policyName;
+
+      // Gracefully patch missing LLM fields before strict Zod validation
+      if (!parsed.bounds || typeof parsed.bounds !== "object" || parsed.bounds.minLockDurationBlocks === 0) {
+        parsed.bounds = {
+          minLockPercent: 0,
+          maxLockPercent: 90,
+          minLockDurationBlocks: 144,
+          maxLockDurationBlocks: 52560
+        };
+      }
+      if (Array.isArray(parsed.adjustments)) {
+        for (const adj of parsed.adjustments) {
+          if (adj && typeof adj === "object") {
+            if (!adj.effect) adj.effect = {};
+            if (adj.effect.lockDurationDeltaBlocks === undefined || adj.effect.lockDurationDeltaBlocks === null) adj.effect.lockDurationDeltaBlocks = 0;
+            if (adj.effect.lockPercentDelta === undefined || adj.effect.lockPercentDelta === null) adj.effect.lockPercentDelta = 0;
+            if (adj.decayCycles === null) delete adj.decayCycles;
+            if (adj.thresholdCount === null) delete adj.thresholdCount;
+            if (adj.thresholdWindowBlocks === null) delete adj.thresholdWindowBlocks;
+          }
+        }
+      }
 
       // Validate against schema — never trust LLM output without validation
       const validated = PolicySpecSchema.parse(parsed);
