@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useCovenant } from "../hooks/useCovenant";
 import type { PolicySpec } from "@covenant/core";
 
@@ -103,6 +103,200 @@ function microToPercent(micro: string, depositMicro: string): string {
   const pct = (Number(BigInt(micro)) / Number(BigInt(depositMicro))) * 100;
   return pct.toFixed(1);
 }
+
+type CovenantHook = ReturnType<typeof useCovenant>;
+
+// function SplitterRegistryCard({ cov }: { cov: CovenantHook }) {
+//   const [draft, setDraft] = useState<Array<{ recipient: string; bps: string }>>([
+//     { recipient: "", bps: "" },
+//   ]);
+//   const [isEditing, setIsEditing] = useState(false);
+
+//   useEffect(() => {
+//     if (cov.walletAddress) {
+//       cov.fetchRegistry();
+//     }
+//     // eslint-disable-next-line react-hooks/exhaustive-deps
+//   }, [cov.walletAddress]);
+
+//   function startEditing() {
+//     if (cov.registry.length > 0) {
+//       setDraft(cov.registry.map((r) => ({ recipient: r.recipient, bps: r.bps.toString() })));
+//     } else {
+//       setDraft([{ recipient: "", bps: "" }]);
+//     }
+//     setIsEditing(true);
+//   }
+
+//   function updateRow(index: number, field: "recipient" | "bps", value: string) {
+//     setDraft((rows) => rows.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
+//   }
+
+//   function addRow() {
+//     if (draft.length >= 5) return;
+//     setDraft((rows) => [...rows, { recipient: "", bps: "" }]);
+//   }
+
+//   function removeRow(index: number) {
+//     setDraft((rows) => rows.filter((_, i) => i !== index));
+//   }
+
+//   const bpsSum = draft.reduce((sum, r) => sum + (parseInt(r.bps, 10) || 0), 0);
+//   const sumIsValid = bpsSum === 10000;
+//   const allAddressesValid = draft.every(
+//     (r) => r.recipient.trim().match(/^(ST|SP)[A-Z0-9]{28,40}$/i)
+//   );
+//   const canSubmit = draft.length > 0 && draft.length <= 5 && sumIsValid && allAddressesValid;
+
+//   async function handleSubmit() {
+//     const entries = draft.map((r) => ({
+//       recipient: r.recipient.trim(),
+//       bps: parseInt(r.bps, 10),
+//     }));
+//     await cov.setRegistry(entries);
+//     setIsEditing(false);
+//   }
+
+//   return (
+//     <div className="card">
+//       <div className="card-header">
+//         <div className="card-title">
+//           <div className="card-icon" style={{ background: "rgba(139,92,246,0.15)" }}>📋</div>
+//           Splitter Registry
+//         </div>
+//         <button
+//           id="btn-refresh-registry"
+//           className="btn btn-secondary btn-sm"
+//           onClick={cov.fetchRegistry}
+//           disabled={cov.isFetchingRegistry}
+//         >
+//           {cov.isFetchingRegistry ? <><div className="spinner" />Fetching...</> : "🔄 Refresh"}
+//         </button>
+//       </div>
+//       <div className="card-body">
+//         <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>
+//           Up to 5 recipients, shares must sum to exactly 10000 basis points
+//           (100%). Editing is only possible when the splitter's live USDCx
+//           balance is zero - the contract enforces this on-chain to prevent
+//           changing shares while funds are already owed under the current
+//           configuration.
+//         </p>
+
+//         {!isEditing ? (
+//           <>
+//             {cov.registry.length === 0 ? (
+//               <div className="empty-state">
+//                 <div className="empty-icon">📭</div>
+//                 <div className="empty-text">No recipients configured yet.</div>
+//               </div>
+//             ) : (
+//               <div className="tx-list" style={{ marginBottom: 16 }}>
+//                 {cov.registry.filter((r) => typeof r.recipient === "string").map((r) => (
+//                     <div key={r.recipient} className="tx-item">
+//                     <span className="tx-hash">{r.recipient.slice(0, 10)}...{r.recipient.slice(-6)}</span>
+//                     <span style={{ fontSize: 13, fontWeight: 700, color: "var(--accent-purple)" }}>
+//                       {(Number(r.bps) / 100).toFixed(2)}%
+//                     </span>
+//                   </div>
+//                 ))}
+//               </div>
+//             )}
+
+//             <button
+//               id="btn-edit-registry"
+//               className="btn btn-secondary"
+//               style={{ width: "100%" }}
+//               onClick={startEditing}
+//               disabled={!cov.walletAddress}
+//             >
+//               ✏️ Edit Registry
+//             </button>
+//           </>
+//         ) : (
+//           <>
+//             {draft.map((row, i) => (
+//               <div key={i} style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
+//                 <input
+//                   className="form-input"
+//                   type="text"
+//                   placeholder="ST... or SP... address"
+//                   value={row.recipient}
+//                   onChange={(e) => updateRow(i, "recipient", e.target.value)}
+//                   style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 12, flex: 2 }}
+//                 />
+//                 <input
+//                   className="form-input"
+//                   type="number"
+//                   placeholder="bps"
+//                   value={row.bps}
+//                   onChange={(e) => updateRow(i, "bps", e.target.value)}
+//                   style={{ flex: 1 }}
+//                 />
+//                 <button
+//                   className="btn btn-danger btn-sm"
+//                   onClick={() => removeRow(i)}
+//                   disabled={draft.length <= 1}
+//                 >
+//                   X
+//                 </button>
+//               </div>
+//             ))}
+
+//             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+//               <button
+//                 className="btn btn-secondary btn-sm"
+//                 onClick={addRow}
+//                 disabled={draft.length >= 5}
+//               >
+//                 + Add Recipient
+//               </button>
+//               <span style={{ fontSize: 13, fontWeight: 700, color: sumIsValid ? "var(--accent-green)" : "var(--accent-red)" }}>
+//                 Total: {bpsSum} / 10000 bps
+//               </span>
+//             </div>
+
+//             {!allAddressesValid && draft.some((r) => r.recipient.trim() !== "") && (
+//               <div className="alert alert-warn" style={{ marginBottom: 12 }}>
+//                 <span className="alert-icon">⚠️</span>
+//                 All addresses must be valid ST... or SP... Stacks principals.
+//               </div>
+//             )}
+
+//             {cov.setRegistryError && (
+//               <div className="alert alert-error" style={{ marginBottom: 12 }}>
+//                 <span className="alert-icon">⚠️</span>{cov.setRegistryError}
+//               </div>
+//             )}
+
+//             <div style={{ display: "flex", gap: 8 }}>
+//               <button
+//                 id="btn-submit-registry"
+//                 className="btn btn-primary"
+//                 style={{ flex: 1 }}
+//                 onClick={handleSubmit}
+//                 disabled={!canSubmit || cov.isSettingRegistry}
+//               >
+//                 {cov.isSettingRegistry ? (
+//                   <><div className="spinner" /> Signing & Broadcasting...</>
+//                 ) : (
+//                   "Save Registry"
+//                 )}
+//               </button>
+//               <button
+//                 className="btn btn-secondary"
+//                 onClick={() => setIsEditing(false)}
+//                 disabled={cov.isSettingRegistry}
+//               >
+//                 Cancel
+//               </button>
+//             </div>
+//           </>
+//         )}
+//       </div>
+//     </div>
+//   );
+// }
+
 
 export default function Home() {
   const cov = useCovenant();
@@ -578,7 +772,7 @@ export default function Home() {
                         </div>
                       </div>
 
-                      {/* Beneficiary / Split address — shown whenever policy has a split */}
+                      {/* Beneficiary / Split address — shown whenever policy has a split
                       {cov.selectedPolicy && cov.selectedPolicy.baseline.splitPercent > 0 && (
                         <div style={{ marginTop: 16 }}>
                           <div className="form-label">Beneficiary Address <span style={{ color: "var(--accent-purple)" }}>({cov.selectedPolicy.baseline.splitPercent}% split)</span></div>
@@ -602,7 +796,7 @@ export default function Home() {
                             </div>
                           )}
                         </div>
-                      )}
+                      )} */}
 
                       <button
                         id="btn-preview-plan"
@@ -616,69 +810,78 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* ── Withdraw Panel ── */}
+                  
+                  
+                  {/* ── Splitter Claim Card ──
                   <div className="card">
                     <div className="card-header">
                       <div className="card-title">
-                        <div className="card-icon" style={{ background: "rgba(239,68,68,0.12)" }}>💸</div>
-                        Withdraw from Vault
-                      </div>
-                      {cov.vaultState && (
-                        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                          Available: <strong style={{ color: "var(--accent-green)" }}>{formatMicro(cov.vaultState.unlocked)} USDCx</strong>
-                        </span>
-                      )}
-                    </div>
-                    <div className="card-body">
-                      {cov.vaultState && BigInt(cov.vaultState.locked) > BigInt(0) && (
-                        <div className="alert alert-warn" style={{ marginBottom: 12 }}>
-                          <span className="alert-icon">🔒</span>
-                          <span><strong>{formatMicro(cov.vaultState.locked)} USDCx</strong> is currently locked. Withdrawing now will be recorded as an <strong>early withdraw</strong> — the engine will tighten rules on the next cycle.</span>
-                        </div>
-                      )}
-                      {cov.withdrawError && (
-                        <div className="alert alert-error" style={{ marginBottom: 12 }}>
-                          <span className="alert-icon">⚠️</span>{cov.withdrawError}
-                        </div>
-                      )}
-                      <div className="form-label">Withdraw Amount</div>
-                      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
-                        <input
-                          id="withdraw-amount-input"
-                          className="form-input"
-                          type="number"
-                          value={Number(cov.withdrawAmountMicro) / 1_000_000}
-                          min={0.000001}
-                          step={0.1}
-                          onChange={(e) => {
-                            const usdcx = parseFloat(e.target.value) || 0;
-                            cov.setWithdrawAmount(String(Math.round(usdcx * 1_000_000)));
-                          }}
-                          placeholder="1"
-                        />
-                        <span style={{ fontSize: 14, color: "var(--accent-red)", fontWeight: 600, whiteSpace: "nowrap" }}>USDCx</span>
-                        {cov.vaultState && (
-                          <button
-                            className="btn btn-sm btn-secondary"
-                            style={{ whiteSpace: "nowrap" }}
-                            onClick={() => cov.setWithdrawAmount(cov.vaultState!.unlocked)}
-                          >Max</button>
-                        )}
-                      </div>
-                      <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 12 }}>
-                        = {cov.withdrawAmountMicro} micro-units
+                        <div className="card-icon" style={{ background: "rgba(16,185,129,0.15)" }}>💰</div>
+                        Splitter Claim
                       </div>
                       <button
-                        id="btn-withdraw"
-                        className="btn btn-danger"
-                        style={{ width: "100%" }}
-                        onClick={cov.withdrawFromVault}
-                        disabled={cov.isWithdrawing || !cov.vaultState || cov.vaultState.unlocked === "0"}
+                        id="btn-refresh-claimable"
+                        className="btn btn-secondary btn-sm"
+                        onClick={cov.fetchContext}
+                        disabled={cov.isFetchingContext}
                       >
-                        {cov.isWithdrawing ? <><div className="spinner" /> Withdrawing...</> : "💸 Withdraw"}
+                        {cov.isFetchingContext ? <><div className="spinner" />Fetching...</> : "🔄 Refresh"}
                       </button>
                     </div>
-                  </div>
+                    <div className="card-body">
+                      <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>
+                        If your connected wallet is a registered recipient on the Covenant
+                        Splitter contract, any USDCx routed there via a FlowVault split can be
+                        claimed here. Shares are fixed per registry configuration — see the
+                        Registry panel below for the current setup.
+                      </p>
+
+                      <div style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: "12px 16px",
+                        background: "rgba(16,185,129,0.07)",
+                        border: "1px solid rgba(16,185,129,0.2)",
+                        borderRadius: "var(--radius-md)",
+                        marginBottom: 16,
+                      }}>
+                        <div>
+                          <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: 4 }}>
+                            Your Claimable Amount
+                          </div>
+                          <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "JetBrains Mono, monospace", color: "var(--accent-green)" }}>
+                            {cov.claimableAmount !== null
+                              ? `${formatMicro(cov.claimableAmount.toString())} USDCx`
+                              : cov.isFetchingContext ? "loading…" : "—"}
+                          </div>
+                        </div>
+                      </div>
+
+                      {cov.claimError && (
+                        <div className="alert alert-error" style={{ marginBottom: 12 }}>
+                          <span className="alert-icon">⚠️</span>{cov.claimError}
+                        </div>
+                      )}
+
+                      <button
+                        id="btn-claim-splitter"
+                        className="btn btn-success btn-lg"
+                        style={{ width: "100%" }}
+                        onClick={cov.claimSplitter}
+                        disabled={cov.isClaiming || !cov.claimableAmount || cov.claimableAmount === 0n}
+                      >
+                        {cov.isClaiming ? (
+                          <><div className="spinner" /> Signing & Broadcasting...</>
+                        ) : (
+                          "💰 Claim My Share"
+                        )}
+                      </button>
+                    </div>
+                  </div> */}
+
+                  {/* ── Splitter Registry Management Card ──
+                  <SplitterRegistryCard cov={cov} /> */}
 
                   {/* Routing Plan */}
                   {cov.routingPlan && (
@@ -815,6 +1018,70 @@ export default function Home() {
                       </div>
                     </div>
                   )}
+
+                  {/* ── Withdraw Panel ── */}
+                  <div className="card">
+                    <div className="card-header">
+                      <div className="card-title">
+                        <div className="card-icon" style={{ background: "rgba(239,68,68,0.12)" }}>💸</div>
+                        Withdraw from Vault
+                      </div>
+                      {cov.vaultState && (
+                        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                          Available: <strong style={{ color: "var(--accent-green)" }}>{formatMicro(cov.vaultState.unlocked)} USDCx</strong>
+                        </span>
+                      )}
+                    </div>
+                    <div className="card-body">
+                      {cov.vaultState && BigInt(cov.vaultState.locked) > BigInt(0) && (
+                        <div className="alert alert-warn" style={{ marginBottom: 12 }}>
+                          <span className="alert-icon">🔒</span>
+                          <span><strong>{formatMicro(cov.vaultState.locked)} USDCx</strong> is currently locked. Withdrawing now will be recorded as an <strong>early withdraw</strong> — the engine will tighten rules on the next cycle.</span>
+                        </div>
+                      )}
+                      {cov.withdrawError && (
+                        <div className="alert alert-error" style={{ marginBottom: 12 }}>
+                          <span className="alert-icon">⚠️</span>{cov.withdrawError}
+                        </div>
+                      )}
+                      <div className="form-label">Withdraw Amount</div>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+                        <input
+                          id="withdraw-amount-input"
+                          className="form-input"
+                          type="number"
+                          value={Number(cov.withdrawAmountMicro) / 1_000_000}
+                          min={0.000001}
+                          step={0.1}
+                          onChange={(e) => {
+                            const usdcx = parseFloat(e.target.value) || 0;
+                            cov.setWithdrawAmount(String(Math.round(usdcx * 1_000_000)));
+                          }}
+                          placeholder="1"
+                        />
+                        <span style={{ fontSize: 14, color: "var(--accent-red)", fontWeight: 600, whiteSpace: "nowrap" }}>USDCx</span>
+                        {cov.vaultState && (
+                          <button
+                            className="btn btn-sm btn-secondary"
+                            style={{ whiteSpace: "nowrap" }}
+                            onClick={() => cov.setWithdrawAmount(cov.vaultState!.unlocked)}
+                          >Max</button>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 12 }}>
+                        = {cov.withdrawAmountMicro} micro-units
+                      </div>
+                      <button
+                        id="btn-withdraw"
+                        className="btn btn-danger"
+                        style={{ width: "100%" }}
+                        onClick={cov.withdrawFromVault}
+                        disabled={cov.isWithdrawing || !cov.vaultState || cov.vaultState.unlocked === "0"}
+                      >
+                        {cov.isWithdrawing ? <><div className="spinner" /> Withdrawing...</> : "💸 Withdraw"}
+                      </button>
+                    </div>
+                  </div>
 
                   {/* Transaction History */}
                   <div className="card">

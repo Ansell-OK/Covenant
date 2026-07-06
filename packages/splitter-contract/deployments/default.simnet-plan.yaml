@@ -4,23 +4,23 @@ network: simnet
 genesis:
   wallets:
   - name: deployer
-    address: STC5KHM41H6WHAST7MWWDD807YSPRQKJ68T330BQ
+    address: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
     balance: '1000000000000'
     sbtc-balance: '1000000000'
   - name: wallet_1
-    address: STC5KHM41H6WHAST7MWWDD807YSPRQKJ68T330BQ
+    address: ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5
     balance: '1000000000000'
     sbtc-balance: '1000000000'
   - name: wallet_2
-    address: STC5KHM41H6WHAST7MWWDD807YSPRQKJ68T330BQ
+    address: ST2CY5V39NHDPWSXMW9QDT3HC3GD6Q6XX4CFRK9AG
     balance: '1000000000000'
     sbtc-balance: '1000000000'
   - name: wallet_3
-    address: STC5KHM41H6WHAST7MWWDD807YSPRQKJ68T330BQ
+    address: ST2JHG361ZXG51QTKY2NQCVBPPRRE2KZB1HR05NNC
     balance: '1000000000000'
     sbtc-balance: '1000000000'
   - name: wallet_4
-    address: STC5KHM41H6WHAST7MWWDD807YSPRQKJ68T330BQ
+    address: ST2NEB84ASENDXKYGJPQW86YXQCEFEX2ZQPG87ND
     balance: '1000000000000'
     sbtc-balance: '1000000000'
   contracts:
@@ -45,18 +45,18 @@ plan:
   - id: 0
     transactions:
     - transaction-type: emulated-contract-publish
-      contract-name: covenant-splitter
-      emulated-sender: STC5KHM41H6WHAST7MWWDD807YSPRQKJ68T330BQ
-      path: contracts/covenant-splitter.clar
-      clarity-version: 2
-    - transaction-type: emulated-contract-publish
       contract-name: sip-010-trait
-      emulated-sender: STC5KHM41H6WHAST7MWWDD807YSPRQKJ68T330BQ
+      emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
       path: tests/mocks/sip-010-trait.clar
       clarity-version: 2
     - transaction-type: emulated-contract-publish
+      contract-name: covenant-splitter
+      emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+      path: contracts/covenant-splitter.clar
+      clarity-version: 2
+    - transaction-type: emulated-contract-publish
       contract-name: mock-sip-010
-      emulated-sender: STC5KHM41H6WHAST7MWWDD807YSPRQKJ68T330BQ
+      emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
       path: tests/mocks/mock-sip-010.clar
       clarity-version: 2
     epoch: '2.4'

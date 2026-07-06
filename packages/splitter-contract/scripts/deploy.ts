@@ -31,7 +31,7 @@ async function run() {
     network = STACKS_TESTNET;
   }
 
-  const contractName = "covenant-splitter";
+  const contractName = "covenant-splitterv5"; // Change this to your desired contract name
   // Strip any non-ASCII characters to avoid codec errors
   const rawCode = fs.readFileSync(path.join(__dirname, "../contracts/covenant-splitter.clar"), "utf8");
   const codeBody = rawCode.replace(/[^\x00-\x7F]/g, "~");

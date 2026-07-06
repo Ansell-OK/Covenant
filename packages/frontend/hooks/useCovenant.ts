@@ -15,7 +15,7 @@ import type {
 import { engine, deriveBehaviorSignals, PolicySpecSchema } from "@covenant/core";
 import { type CompileResult } from "@covenant/policy-compiler";
 import { createBrowserVaultClient } from "../lib/flowvault";
-import { getClaimableAmount, buildClaimOptions, SPLITTER_CONTRACT_ADDRESS } from "@covenant/flowvault-adapter";
+import { getClaimableAmount, buildClaimOptions, getFullRegistry, buildSetRegistryOptions, SPLITTER_CONTRACT_ADDRESS } from "@covenant/flowvault-adapter";
 
 // ── Token config ────────────────────────────────────────────────────────────────
 const USDCX_CONTRACT_ADDRESS = "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM";
@@ -142,6 +142,10 @@ export interface CovenantState {
   claimableAmount: bigint | null;
   isClaiming: boolean;
   claimError: string | null;
+  registry: Array<{ recipient: string; bps: bigint }>;
+  isFetchingRegistry: boolean;
+  isSettingRegistry: boolean;
+  setRegistryError: string | null;
 
   // History
   history: HistoryLogEntry[];
@@ -163,6 +167,8 @@ export interface CovenantActions {
   setSplitAddressOverride: (v: string) => void;
   clearHistory: () => void;
   claimSplitter: () => Promise<void>;
+  fetchRegistry: () => Promise<void>;
+  setRegistry: (entries: Array<{ recipient: string; bps: number }>) => Promise<void>;
 }
 
 const EXPLORER_BASE = "https://explorer.hiro.so/txid/";
@@ -196,6 +202,10 @@ export function useCovenant(): CovenantState & CovenantActions {
     claimableAmount: null,
     isClaiming: false,
     claimError: null,
+    registry: [],
+    isFetchingRegistry: false,
+    isSettingRegistry: false,
+    setRegistryError: null,
     history: [],
   });
 
@@ -348,6 +358,7 @@ export function useCovenant(): CovenantState & CovenantActions {
   useEffect(() => {
     if (state.walletAddress) {
       fetchContext();
+      fetchRegistry();
     }
   }, [state.walletAddress]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -618,6 +629,49 @@ export function useCovenant(): CovenantState & CovenantActions {
     }
   }, [state.walletAddress]);
 
+  const fetchRegistry = useCallback(async () => {
+    setState((s) => ({ ...s, isFetchingRegistry: true }));
+    try {
+      const registry = await getFullRegistry();
+      setState((s) => ({ ...s, registry, isFetchingRegistry: false }));
+    } catch (e) {
+      console.error("Error fetching registry:", e);
+      setState((s) => ({ ...s, isFetchingRegistry: false }));
+    }
+  }, []);
+
+  const setRegistry = useCallback(
+    async (entries: Array<{ recipient: string; bps: number }>) => {
+      if (!state.walletAddress) return;
+      setState((s) => ({ ...s, isSettingRegistry: true, setRegistryError: null }));
+      try {
+        const options = buildSetRegistryOptions(entries);
+        await openContractCall({
+          ...options,
+          onFinish: (data) => {
+            console.log("set-registry tx submitted:", data.txId);
+            setState((s) => ({ ...s, isSettingRegistry: false }));
+            fetchRegistry();
+          },
+          onCancel: () => {
+            setState((s) => ({
+              ...s,
+              isSettingRegistry: false,
+              setRegistryError: "Transaction canceled",
+            }));
+          },
+        });
+      } catch (e) {
+        setState((s) => ({
+          ...s,
+          isSettingRegistry: false,
+          setRegistryError: e instanceof Error ? e.message : String(e),
+        }));
+      }
+    },
+    [state.walletAddress, fetchRegistry]
+  );
+
   return {
     ...state,
     connectWallet,
@@ -635,6 +689,8 @@ export function useCovenant(): CovenantState & CovenantActions {
     setSplitAddressOverride,
     clearHistory,
     claimSplitter,
+    fetchRegistry,
+    setRegistry,
   };
 }
 

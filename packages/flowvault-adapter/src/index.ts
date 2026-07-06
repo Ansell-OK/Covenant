@@ -22,7 +22,9 @@ export type { ExecuteDepositCycleResult } from "./executor";
 
 export {
   getClaimableAmount,
-  getSplitterBalance,
+  getSplitterUsdcxBalance,
   buildClaimOptions,
+  buildSetRegistryOptions,
+  getFullRegistry,
   SPLITTER_CONTRACT_ADDRESS
 } from "./splitterClient";
