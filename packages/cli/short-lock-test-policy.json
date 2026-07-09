@@ -1,0 +1,16 @@
+{
+  "name": "short-lock-agent-test",
+  "baseline": {
+    "lockPercent": 50,
+    "lockDurationBlocks": 20,
+    "splitAddress": null,
+    "splitPercent": 0
+  },
+  "adjustments": [],
+  "bounds": {
+    "minLockPercent": 0,
+    "maxLockPercent": 90,
+    "minLockDurationBlocks": 1,
+    "maxLockDurationBlocks": 52560
+  }
+}

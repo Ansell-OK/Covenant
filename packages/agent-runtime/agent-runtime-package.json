@@ -1,0 +1,26 @@
+{
+  "name": "@covenant/agent-runtime",
+  "version": "1.0.0",
+  "description": "Long-running polling agent: watches a FlowVault address, decides whether to act via LLM judgment (local-rules fallback), and executes cycles through the same functions the CLI uses.",
+  "main": "dist/index.js",
+  "bin": {
+    "covenant-agent": "dist/run.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/run.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@covenant/core": "*",
+    "@covenant/flowvault-adapter": "*",
+    "@covenant/policy-compiler": "*",
+    "dotenv": "^16.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  }
+}

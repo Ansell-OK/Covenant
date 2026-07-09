@@ -9,7 +9,8 @@
     "packages/flowvault-adapter",
     "packages/cli",
     "packages/frontend",
-    "packages/splitter-contract"
+    "packages/splitter-contract",
+    "packages/agent-runtime"
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",

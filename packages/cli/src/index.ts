@@ -34,7 +34,28 @@ import {
   ParsingError,
 } from "@covenant/flowvault-adapter";
 
+import { getAddressFromPrivateKey } from "@stacks/transactions";
 const program = new Command();
+
+
+
+async function resolveSenderKey(rawKey: string): Promise<string> {
+  // Leather/Xverse (and most Stacks wallets) work with seed phrases, not raw
+  // private keys - STACKS_PRIVATE_KEY may be either. Detect a seed phrase by
+  // the presence of spaces, derive the real private key via
+  // @stacks/wallet-sdk if so. Same approach already proven working in
+  // scripts/deploy.ts and agent-runtime/src/test-cycle.ts tonight.
+  if (rawKey.includes(" ")) {
+    const { generateWallet } = require("@stacks/wallet-sdk");
+    const wallet = await generateWallet({ secretKey: rawKey, password: "password" });
+    const account = wallet.accounts[0];
+    console.log("Derived private key from seed phrase.");
+    return account.stxPrivateKey;
+  }
+  return rawKey;
+}
+
+
 
 program
   .name("covenant")
@@ -75,18 +96,41 @@ program
     false
   )
   .action(async (opts) => {
-    console.log("\n🔒 Covenant — Behavioral Vesting Engine\n");
-
+    console.log("\nCovenant — Behavioral Vesting Engine\n");
+ 
     // ── Load private key ─────────────────────────────────────────────────
-    const senderKey = process.env.STACKS_PRIVATE_KEY;
-    if (!senderKey && !opts.dryRun) {
+    const rawSenderKey = process.env.STACKS_PRIVATE_KEY;
+    if (!rawSenderKey && !opts.dryRun) {
       console.error(
-        "❌ STACKS_PRIVATE_KEY is not set. " +
-          "Add it to your .env file (CLI mode only — never in frontend)."
+        "STACKS_PRIVATE_KEY is not set. " +
+          "Add it to your .env file (CLI mode only - never in frontend)."
       );
       process.exit(1);
     }
+    const senderKey = rawSenderKey ? await resolveSenderKey(rawSenderKey) : rawSenderKey;
 
+    if (!opts.dryRun) {
+      if (!senderKey) {
+        console.error("STACKS_PRIVATE_KEY resolution failed unexpectedly.");
+        process.exit(1);
+        return;
+      }
+
+      const derivedAddress = getAddressFromPrivateKey(senderKey, "testnet");
+      if (derivedAddress !== opts.address) {
+        console.error(
+          "\nADDRESS MISMATCH:\n" +
+          "  --address flag says:              " + opts.address + "\n" +
+          "  Your private key/seed derives to: " + derivedAddress + "\n\n" +
+          "The transaction would be signed by " + derivedAddress + ", NOT " + opts.address + ".\n" +
+          "This is almost certainly not what you want - either:\n" +
+          "  1. Change --address to match " + derivedAddress + ", or\n" +
+          "  2. Set STACKS_PRIVATE_KEY to a key/seed that actually derives to " + opts.address + "\n"
+        );
+        process.exit(1);
+      }
+    }
+ 
     // ── Load / compile policy ────────────────────────────────────────────
     let policy;
     if (opts.policy) {
@@ -232,10 +276,24 @@ program
   .requiredOption("--address <address>", "Stacks principal address")
   .option("--amount <amount>", "Amount in micro-units", "1000000")
   .action(async (opts) => {
-    const senderKey = process.env.STACKS_PRIVATE_KEY;
-    if (!senderKey) {
-      console.error("❌ STACKS_PRIVATE_KEY is not set.");
+    const rawSenderKey = process.env.STACKS_PRIVATE_KEY;
+    if (!rawSenderKey) {
+      console.error("STACKS_PRIVATE_KEY is not set.");
       process.exit(1);
+      return;
+    }
+    const senderKey = await resolveSenderKey(rawSenderKey);
+
+    const derivedAddress = getAddressFromPrivateKey(senderKey, "testnet");
+    if (derivedAddress !== opts.address) {
+      console.error(
+        "\nADDRESS MISMATCH:\n" +
+        "  --address flag says:              " + opts.address + "\n" +
+        "  Your private key/seed derives to: " + derivedAddress + "\n\n" +
+        "The transaction would be signed by " + derivedAddress + ", NOT " + opts.address + ".\n"
+      );
+      process.exit(1);
+      return;
     }
 
     const vault = createCliVault(senderKey);

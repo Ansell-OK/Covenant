@@ -173,6 +173,11 @@ To reset history for a clean demo run, delete `.covenant/history-<address>.json`
 
 ---
 
+## Updates: Stage 1: 
+1️⃣ A pull-model multi-recipient splitter contract was prototyped to extend FlowVault's single-recipient split into multi-party payouts. The contract and its registry-management logic pass all local unit tests, but a discrepancy between the contract's internal balance read (via `contract-call?` inside `as-contract`) and external reads remains unresolved at submission time — tracked as a known limitation, not claimed as a working feature.
+
+2️⃣ Refactored UI: Splitter Card and Claim UI is commented out for user level abstraction. Edited UI layout
+
 ## License
 
 MIT

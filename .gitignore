@@ -16,6 +16,7 @@ dist/
 packages/*/dist/
 packages/frontend/.next/
 packages/frontend/out/
+submission
 
 # Logs
 *.log

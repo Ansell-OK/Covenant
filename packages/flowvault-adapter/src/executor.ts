@@ -98,16 +98,23 @@ export async function executeWithdraw(
   currentBlock: number
 ): Promise<{ txId: string; historyEntry: HistoryLogEntry }> {
   // Check if there are locked funds that haven't expired yet
+  // Use getVaultState (real, live locked balance), NOT getRoutingRules (the
+  // configured rule, which stays set even after the lock has already been
+  // consumed or matured). Checking the rule instead of live state was the
+  // actual bug: it can report a "future" lockUntilBlock from the configured
+  // rule while the real vault balance has already correctly unlocked, or
+  // vice versa. Confirmed against real decoded on-chain data tonight that
+  // vaultState.lockedBalance is the accurate, live source of truth for
+  // whether funds are ACTUALLY still locked right now.
   let hasActiveLock = false;
-  try {
-    const rules = await vault.getRoutingRules(address);
-    if (rules && rules.lockUntilBlock > currentBlock && BigInt(rules.lockAmount ?? "0") > 0n) {
+    try {
+      const state = await vault.getVaultState(address);
+      if (state && BigInt(state.lockedBalance ?? 0) > 0n && state.lockUntilBlock > currentBlock) {
       hasActiveLock = true;
-    }
-  } catch {
-    // If we can't read rules, conservatively assume no early withdraw
+      }
+    } catch {
     hasActiveLock = false;
-  }
+    }
 
   try {
     const result = await vault.withdraw(amountMicro);
@@ -262,12 +269,42 @@ function mapSdkError(err: unknown): Error {
 // ── Utility ───────────────────────────────────────────────────────────────────
 
 function extractTxId(result: unknown): string {
-  if (typeof result === "string") return result;
-  if (result && typeof result === "object" && "txId" in result) {
-    return (result as { txId: string }).txId;
-  }
-  if (result && typeof result === "object" && "txid" in result) {
-    return (result as { txid: string }).txid;
-  }
-  return String(result);
+if (result && typeof result === "object") {
+const obj = result as Record<string, unknown>;
+
+// TransactionResult has a `status` field: "success" means accepted into
+// the mempool, "error" means it was NOT. A txId can be present and look
+// completely valid even when status is "error" - the SDK computes the
+// tx hash locally at signing time, before broadcast is even attempted.
+// This is the actual root cause tonight: we were only checking for the
+// presence of a txId, never checking whether the broadcast itself
+// actually succeeded.
+if ("status" in obj && obj.status === "error") {
+  throw new Error(
+    "Transaction was not accepted into the mempool (status: error). " +
+    "Raw response: " + JSON.stringify(result)
+  );
 }
+
+if (typeof obj.txId === "string" && obj.txId.length > 0) {
+  return obj.txId;
+}
+if (typeof obj.txid === "string" && obj.txid.length > 0) {
+  return obj.txid;
+}
+
+}
+
+if (typeof result === "string" && result.length > 0) {
+return result;
+}
+
+throw new Error(
+"Could not extract a valid transaction id from the SDK response. " +
+"Raw response: " + JSON.stringify(result) +
+". This usually means the transaction was not actually broadcast " +
+"successfully, even though the call did not throw."
+);
+}
+
+
